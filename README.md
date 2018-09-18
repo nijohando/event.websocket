@@ -38,13 +38,13 @@ Function `client` creates an event bus that acts as a websocket client.
 (def bus (ws/client))
 ```
 
-Function `connect` connects the bus with the websocket server.
+Function `connect!` connects the bus with the websocket server.
 
 ```clojure
 (ws/connect! bus "wss://echo.websocket.org")
 ```
 
-Function `disconnect` disconnects the session from the websocket server.
+Function `disconnect!` disconnects the session from the websocket server.
 
 ```clojure
 (ws/disconnect! bus)
