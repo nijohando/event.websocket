@@ -21,8 +21,8 @@
 (def websocket-container (delay(ContainerProvider/getWebSocketContainer)))
 
 (defprotocol Client
-  (-connect [this url])
-  (-disconnect [this])
+  (-connect! [this url])
+  (-disconnect! [this])
   (-on-open [this session])
   (-on-close [this session reason])
   (-on-error [this failure]))
@@ -39,13 +39,13 @@
     (onError [^Session session ^Throwable th]
       (-on-error client (f/wrap th ::error)))))
 
-(defn connect
+(defn connect!
   [client url]
-  (-connect client url))
+  (-connect! client url))
 
-(defn disconnect
+(defn disconnect!
   [client]
-  (-disconnect client))
+  (-disconnect! client))
 
 (defmulti ^:private send-message* (fn [remote type value] (keyword type)))
 (defmethod send-message* :text [remote _ value]
@@ -91,7 +91,7 @@
          (recur)))
      (reify
        Client
-       (-connect [this url]
+       (-connect! [this url]
          (dosync
            (when (= :disconnected @state)
              (let [endpoint (new-endpoint this)
@@ -108,7 +108,7 @@
                                (error!! (f/wrap x ::connect-failed))
                                nil)))))))
          nil)
-       (-disconnect [this]
+       (-disconnect! [this]
          (dosync
            (when (= :connected @state)
              (ref-set state :disconnecting)
