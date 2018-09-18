@@ -62,9 +62,9 @@
              _ (d/defer (ev/close! bus))
              listener (ca/chan)
              _ (d/defer (ca/close! listener))
-             _ (d/defer (ws/disconnect bus))]
+             _ (d/defer (ws/disconnect! bus))]
          (ev/listen bus "/*" listener)
-         (ws/connect bus @ws-url)
+         (ws/connect! bus @ws-url)
          (let [[r v] (recv!! listener)]
            (is (= :ok r))
            (is (= "/connect" (:path v))))))))
@@ -75,9 +75,9 @@
               _ (d/defer (ev/close! bus))
               listener (ca/chan)
               _ (d/defer (ca/close! listener))
-              _ (d/defer (ws/disconnect bus))]
+              _ (d/defer (ws/disconnect! bus))]
           (ev/listen bus "/*" listener)
-          (ws/connect bus "ws://nil.nijohando.jp") ;; nonexistent host for connection failed
+          (ws/connect! bus "ws://nil.nijohando.jp") ;; nonexistent host for connection failed
           (let [[r v] (recv!! listener (ca/timeout 3000))]
             (is (= :ok r))
             (is (= "/error" (:path v))))))))
@@ -88,10 +88,10 @@
               _ (d/defer (ev/close! bus))
               listener (ca/chan)
               _ (d/defer (ca/close! listener))
-              _ (d/defer (ws/disconnect bus))]
+              _ (d/defer (ws/disconnect! bus))]
           (ev/listen bus "/*" listener)
           (dotimes [n 5]
-            (ws/connect bus @ws-url))
+            (ws/connect! bus @ws-url))
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/connect" (:path v))))
@@ -105,11 +105,11 @@
               listener (ca/chan)
               _ (d/defer (ca/close! listener))]
           (ev/listen bus "/*" listener)
-          (ws/connect bus @ws-url)
+          (ws/connect! bus @ws-url)
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/connect" (:path v))))
-          (ws/disconnect bus)
+          (ws/disconnect! bus)
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/disconnect" (:path v)))
@@ -122,12 +122,12 @@
              listener (ca/chan)
              _ (d/defer (ca/close! listener))]
          (ev/listen bus "/*" listener)
-         (ws/connect bus @ws-url)
+         (ws/connect! bus @ws-url)
          (let [[r v] (recv!! listener)]
            (is (= :ok r))
            (is (= "/connect" (:path v))))
          (dotimes [n 5]
-           (ws/disconnect bus))
+           (ws/disconnect! bus))
          (let [[r v] (recv!! listener)]
            (is (= :ok r))
            (is (= "/disconnect" (:path v)))
@@ -142,7 +142,7 @@
               listener (ca/chan 10)
               _ (d/defer (ca/close! listener))]
           (ev/listen bus "/*" listener)
-          (ws/connect bus @ws-url)
+          (ws/connect! bus @ws-url)
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/connect" (:path v))))
@@ -166,7 +166,7 @@
                           ["connect"]
                           ["message/text"]
                           ["error"]] listener)
-          (ws/connect bus @ws-url)
+          (ws/connect! bus @ws-url)
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/connect" (:path v))))
@@ -190,7 +190,7 @@
                           ["connect"]
                           ["message/binary"]
                           ["error"]] listener)
-          (ws/connect bus @ws-url)
+          (ws/connect! bus @ws-url)
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/connect" (:path v))))
@@ -215,7 +215,7 @@
                           ["connect"]
                           ["message/pong"]
                           ["error"]] listener)
-          (ws/connect bus @ws-url)
+          (ws/connect! bus @ws-url)
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/connect" (:path v))))

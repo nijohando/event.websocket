@@ -29,7 +29,7 @@ jp.nijohando/event {:mvn/version "0.1.0-SNAPSHOT"}
 
 #### Bus integration
 
-This library provides only 3 functions that are `client`, `connect` and `disconnect`.  
+This library provides only 3 functions that are `client`, `connect!` and `disconnect!`.  
 
 
 Function `client` creates an event bus that acts as a websocket client.
@@ -41,13 +41,13 @@ Function `client` creates an event bus that acts as a websocket client.
 Function `connect` connects the bus with the websocket server.
 
 ```clojure
-(ws/connect bus "wss://echo.websocket.org")
+(ws/connect! bus "wss://echo.websocket.org")
 ```
 
 Function `disconnect` disconnects the session from the websocket server.
 
 ```clojure
-(ws/disconnect bus)
+(ws/disconnect! bus)
 ```
 
 All other operations are channel based operations with [nijohando/event](https://github.com/nijohando/event) API.
@@ -72,7 +72,7 @@ Various events related to websocket can be read from the listener channel.
       "/error"          (prn "error!" value)
       (prn "other event " path))
     (recur)))
-(ws/connect bus "wss://echo.websocket.org")
+(ws/connect! bus "wss://echo.websocket.org")
 ;=> "connected!"
 ; "pong message arrived!"
 ```
@@ -96,7 +96,7 @@ Messages can be sent via the emitter channel.
       "/message/text" (prn "echo message arrivded! " value)
       "/error"        (prn "error! " value))
     (recur)))
-(ws/connect bus "wss://echo.websocket.org")
+(ws/connect! bus "wss://echo.websocket.org")
 ;=> "echo message arrivded! " "hello!"
 ```
 
