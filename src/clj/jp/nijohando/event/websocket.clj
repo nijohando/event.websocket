@@ -74,10 +74,8 @@
    (let [bus (ev/blocking-bus (or buffer-size 256))
          emitter (ca/chan)
          listener (ca/chan)
-         emit!! (fn [path value]
-                  (ca/>!! emitter (ev/event path value)))
-         error!! (fn [failure]
-                   (emit!! "/error" failure))
+         error-event (fn [failure]
+                       (ev/event "/error" failure))
          config (-> (ClientEndpointConfig$Builder/create)
                     (.build))
          state (ref :disconnected)
@@ -87,7 +85,8 @@
      (ca/go-loop []
        (when-let [{:keys [value header]} (ca/<! listener)]
          (f/when-fail [x (send-message @current-session (get-in header [:route :path-params :type]) value)]
-           (error!! x))
+           (->> (error-event x)
+                (ca/>! emitter)))
          (recur)))
      (reify
        Client
@@ -105,7 +104,10 @@
                                x)
                              (do
                                (dosync (ref-set state :disconnected))
-                               (error!! (f/wrap x ::connect-failed))
+                               (ca/go
+                                 (->> (f/wrap x ::connect-failed)
+                                      error-event
+                                      (ca/>! emitter)))
                                nil)))))))
          nil)
        (-disconnect! [this]
@@ -116,34 +118,44 @@
                        (fn [session]
                          (when (and session (.isOpen session))
                            (f/when-fail* [x (.close session)]
-                             (do
-                               (dosync (ref-set state :connected))
-                               (error!! (f/wrap x ::disconnect-failed))
-                               session)))))
+                             (dosync (ref-set state :connected))
+                             (ca/go
+                               (->> (f/wrap x ::disconnect-failed)
+                                    error-event
+                                    (ca/>! emitter)))
+                             session))))
              nil)))
        (-on-open [this session]
          (.addMessageHandler session
                              (reify
                                WholeTextMessageHandler
                                (onMessage [_ text]
-                                 (emit!! "/message/text" text))))
+                                 (->> (ev/event "/message/text" text)
+                                      (ca/>!! emitter)))))
          (.addMessageHandler session
                              (reify
                                WholeBinaryMessageHandler
                                (onMessage [_ bytes]
-                                 (emit!! "/message/binary" bytes))))
+                                 (->> (ev/event "/message/binary" bytes)
+                                      (ca/>!! emitter)))))
          (.addMessageHandler session
                              (reify
                                PongMessageHandler
                                (onMessage [_ pongMessage]
-                                 (emit!! "/message/pong" (.. pongMessage getApplicationData array)))))
-
-         (emit!! "/connect" nil))
+                                 (->> (ev/event "/message/pong" (.. pongMessage getApplicationData array))
+                                      (ca/>!! emitter)))))
+         (ca/go
+           (->> (ev/event "/connect")
+                (ca/>! emitter))))
        (-on-close [_ session reason]
          (dosync (ref-set state :disconnected))
-         (emit!! "/disconnect" reason))
+         (ca/go
+           (->> (ev/event "/disconnect" reason)
+                (ca/>! emitter))))
        (-on-error [_ failure]
-         (emit!! "/error" failure))
+         (ca/go
+           (->> (error-event failure)
+                (ca/>! emitter))))
        evp/Emittable
        (emitize [_ emitter-ch reply-ch]
          (ev/emitize bus emitter-ch reply-ch))
