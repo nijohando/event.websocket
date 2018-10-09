@@ -223,4 +223,27 @@
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/message/pong" (:path v)))
-            (is (= "test" (String. (:value v))))))))))
+            (is (= "test" (String. (:value v)))))))))
+
+  (testing "ping message without application data can be sent and pong received"
+    (with-echo-server op
+      (d/do*
+        (let [bus (ws/client)
+              _ (d/defer (ev/close! bus))
+              emitter (ca/chan)
+              listener (ca/chan)
+              _ (d/defer (ca/close! listener))]
+          (ev/emitize bus emitter)
+          (ev/listen bus ["/"
+                          ["connect"]
+                          ["message/pong"]
+                          ["error"]] listener)
+          (ws/connect! bus @ws-url)
+          (let [[r v] (recv!! listener)]
+            (is (= :ok r))
+            (is (= "/connect" (:path v))))
+          (emit!! emitter (ev/event "/send/ping"))
+          (let [[r v] (recv!! listener)]
+            (is (= :ok r))
+            (is (= "/message/pong" (:path v)))
+            (is (= "" (String. (:value v))))))))))
