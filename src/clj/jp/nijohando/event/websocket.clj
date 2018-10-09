@@ -53,7 +53,8 @@
 (defmethod send-message* :binary [remote _ bytes]
   (.. remote (sendBinary (ByteBuffer/wrap bytes))))
 (defmethod send-message* :ping [remote _ bytes]
-  (.. remote (sendPing (ByteBuffer/wrap bytes))))
+  (.. remote (sendPing (when bytes
+                         (ByteBuffer/wrap bytes)))))
 (defmethod send-message* :default [_ type value]
   (-> (f/fail ::unknown-data-type)
       (assoc :type type :value value)))
