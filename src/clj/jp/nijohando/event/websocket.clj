@@ -109,8 +109,8 @@
                                  (->> (f/wrap x ::connect-failed)
                                       error-event
                                       (ca/>! emitter)))
-                               nil)))))))
-         nil)
+                               nil))))
+               true))))
        (-disconnect! [this]
          (dosync
            (when (= :connected @state)
@@ -125,7 +125,7 @@
                                     error-event
                                     (ca/>! emitter)))
                              session))))
-             nil)))
+             true)))
        (-on-open [this session]
          (.addMessageHandler session
                              (reify
