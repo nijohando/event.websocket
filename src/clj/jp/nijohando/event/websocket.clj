@@ -117,14 +117,14 @@
              (ref-set state :disconnecting)
              (send-off current-session
                        (fn [session]
+                         (dosync (ref-set state :disconnected))
                          (when (and session (.isOpen session))
                            (f/when-fail* [x (.close session)]
-                             (dosync (ref-set state :connected))
                              (ca/go
                                (->> (f/wrap x ::disconnect-failed)
                                     error-event
-                                    (ca/>! emitter)))
-                             session))))
+                                    (ca/>! emitter)))))
+                         nil))
              true)))
        (-on-open [this session]
          (.addMessageHandler session
