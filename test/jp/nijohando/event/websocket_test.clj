@@ -1,6 +1,7 @@
 (ns jp.nijohando.event.websocket-test
   (:require [clojure.test :as t :refer [run-tests is are deftest testing use-fixtures]]
             [clojure.core.async :as ca]
+            [jp.nijohando.ext.async :as xa]
             [jp.nijohando.event :as ev]
             [jp.nijohando.event.websocket :as ws]
             [jp.nijohando.deferable :as d]
@@ -65,9 +66,9 @@
              _ (d/defer (ws/disconnect! bus))]
          (ev/listen bus "/*" listener)
          (ws/connect! bus @ws-url)
-         (let [[r v] (recv!! listener)]
-           (is (= :ok r))
-           (is (= "/connect" (:path v))))))))
+         (let [x (xa/<!! listener :timeout 1000)]
+           (is (f/succ? x))
+           (is (= "/connect" (:path x))))))))
   (testing "'connect-failed' event must be emitted when failed to connect to the server"
     (with-echo-server op
       (d/do*
@@ -246,4 +247,20 @@
           (let [[r v] (recv!! listener)]
             (is (= :ok r))
             (is (= "/message/pong" (:path v)))
-            (is (= "" (String. (:value v))))))))))
+            (is (= "" (String. (:value v)))))))))
+  (testing "Error event must occurs if a message is sent when websocket is closed"
+    (d/do*
+      (let [bus (ws/client)
+            _ (d/defer (ev/close! bus))
+            emitter (ca/chan)
+            listener (ca/chan)
+            _ (d/defer (ca/close! listener))]
+        (ev/emitize bus emitter)
+        (ev/listen bus ["/error"] listener)
+        (emit!! emitter (ev/event "/send/ping"))
+        (let [{:keys [path value] :as x} (xa/<!! listener :timeout 1000)]
+          (is (f/succ? x))
+          (is (= "/error" path))
+          (is (f/fail? value))
+          (is (= ::ws/send-failed @value))
+          (is (= ::ws/closed @(f/cause value))))))))

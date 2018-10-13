@@ -64,12 +64,14 @@ Various events related to websocket can be read from the listener channel.
 (ca/go-loop []
   (when-some [{:keys [path value] :as event} (ca/<! listener)]
     (condp = path
-      "/connect"        (prn "connected!")
-      "/disconnect"     (prn "disconnected!")
-      "/message/text"   (prn "text message arrived!")
-      "/message/binary" (prn "binary message arrived!")
-      "/message/pong"   (prn "pong message arrived!")
-      "/error"          (prn "error!" value)
+      "/connect"           (prn "connected!")
+      "/connect-failed"    (prn "connect-failed!")
+      "/disconnect"        (prn "disconnected!")
+      "/disconnect-failed" (prn "disconnect-failed!")
+      "/message/text"      (prn "text message arrived!")
+      "/message/binary"    (prn "binary message arrived!")
+      "/message/pong"      (prn "pong message arrived!")
+      "/error"             (prn "error!" value)
       (prn "other event " path))
     (recur)))
 (ws/connect! bus "wss://echo.websocket.org")

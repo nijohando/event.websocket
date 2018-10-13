@@ -66,7 +66,11 @@
       (f/when-fail* [x (send-message* (.getBasicRemote session) type value)]
         (-> (f/wrap x ::send-failed)
             (assoc :type type
-                   :value value))))))
+                   :value value))))
+    (-> (f/fail ::closed)
+        (f/wrap ::send-failed)
+        (assoc :type type
+               :value value))))
 
 (defn client
   ([]
@@ -106,8 +110,7 @@
                              (do
                                (dosync (ref-set state :disconnected))
                                (ca/go
-                                 (->> (f/wrap x ::connect-failed)
-                                      error-event
+                                 (->> (ev/event "/connect-failed" x)
                                       (ca/>! emitter)))
                                nil))))
                true))))
@@ -121,8 +124,7 @@
                          (when (and session (.isOpen session))
                            (f/when-fail* [x (.close session)]
                              (ca/go
-                               (->> (f/wrap x ::disconnect-failed)
-                                    error-event
+                               (->> (ev/event "/disconnect-failed" x)
                                     (ca/>! emitter)))))
                          nil))
              true)))

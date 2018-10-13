@@ -14,6 +14,7 @@
   :prep-tasks [["with-profile" "-dev" "javac"] "compile"]
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[org.clojure/tools.namespace "0.3.0-alpha4"]
-                                  [http-kit "2.2.0"]]}}
+                                  [http-kit "2.2.0"]
+                                  [jp.nijohando/ext.async "0.1.0"]]}}
   :deploy-repositories [["releases" :clojars]
                         ["snapshots" :clojars]])
