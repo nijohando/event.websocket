@@ -10,28 +10,6 @@
 
 (def ^:private ws-url (atom nil))
 
-(defn- emit!!
-  ([emitter-ch event]
-   (emit!! emitter-ch event nil))
-  ([emitter-ch event timeout-ch]
-   (let [timeout-ch (or timeout-ch (ca/timeout 1000))
-         [v ch] (ca/alts!! [[emitter-ch event] timeout-ch])]
-     (cond
-       (= ch emitter-ch) (if (true? v)
-                           :ok
-                           :close)
-       (= ch timeout-ch) :timeout))))
-
-(defn- recv!!
-  ([listener-ch]
-   (recv!! listener-ch nil))
-  ([listener-ch timeout-ch]
-   (let [timeout-ch (or timeout-ch (ca/timeout 1000))
-         [v ch] (ca/alts!! [listener-ch timeout-ch])]
-     (cond
-       (= ch listener-ch) [:ok v]
-       (= ch timeout-ch) [:timeout]))))
-
 (defmacro with-echo-server
   [op-sym & body]
   `(d/do*
@@ -79,9 +57,9 @@
               _ (d/defer (ws/disconnect! bus))]
           (ev/listen bus "/*" listener)
           (ws/connect! bus "ws://nil.nijohando.jp") ;; nonexistent host for connection failed
-          (let [[r v] (recv!! listener (ca/timeout 3000))]
-            (is (= :ok r))
-            (is (= "/error" (:path v))))))))
+          (let [x (xa/<!! listener :timeout 3000)]
+            (is (f/succ? x))
+            (is (= "/error" (:path x))))))))
   (testing "Just one 'connect' event must be emitted even if connecting multiple times"
     (with-echo-server op
       (d/do*
@@ -93,11 +71,12 @@
           (ev/listen bus "/*" listener)
           (dotimes [n 5]
             (ws/connect! bus @ws-url))
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/connect" (:path v))))
-          (let [[r v] (recv!! listener)]
-            (is (= :timeout r)))))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/connect" (:path x))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/fail? x))
+            (is (= ::xa/timeout @x)))))))
   (testing "'disconnect' event must be emitted when disconnected from myself"
     (with-echo-server op
       (d/do*
@@ -107,14 +86,14 @@
               _ (d/defer (ca/close! listener))]
           (ev/listen bus "/*" listener)
           (ws/connect! bus @ws-url)
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/connect" (:path v))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/connect" (:path x))))
           (ws/disconnect! bus)
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/disconnect" (:path v)))
-            (is (= {:code 1000 :reason ""} (:value v))))))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/disconnect" (:path x)))
+            (is (= {:code 1000 :reason ""} (:value x))))))))
   (testing "Just one `disconnect` event must be emitted even if disconnecting multiple times"
     (with-echo-server op
       (d/do*
@@ -124,17 +103,18 @@
              _ (d/defer (ca/close! listener))]
          (ev/listen bus "/*" listener)
          (ws/connect! bus @ws-url)
-         (let [[r v] (recv!! listener)]
-           (is (= :ok r))
-           (is (= "/connect" (:path v))))
+         (let [x (xa/<!! listener :timeout 1000)]
+           (is (f/succ? x))
+           (is (= "/connect" (:path x))))
          (dotimes [n 5]
            (ws/disconnect! bus))
-         (let [[r v] (recv!! listener)]
-           (is (= :ok r))
-           (is (= "/disconnect" (:path v)))
-           (is (= {:code 1000 :reason ""} (:value v))))
-         (let [[r v] (recv!! listener)]
-           (is (= :timeout r)))))))
+         (let [x (xa/<!! listener :timeout 1000)]
+           (is (f/succ? x))
+           (is (= "/disconnect" (:path x)))
+           (is (= {:code 1000 :reason ""} (:value x))))
+         (let [x (xa/<!! listener :timeout 1000)]
+           (is (f/fail? x))
+           (is (= ::xa/timeout @x)))))))
   (testing "'disconnect' event must be emitted when disconnected from the server"
     (with-echo-server op
       (d/do*
@@ -144,14 +124,14 @@
               _ (d/defer (ca/close! listener))]
           (ev/listen bus "/*" listener)
           (ws/connect! bus @ws-url)
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/connect" (:path v))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/connect" (:path x))))
           (op :disconnect-all-clients)
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/disconnect" (:path v)))
-            (is (= {:code 1000 :reason ""} (:value v)))))))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/disconnect" (:path x)))
+            (is (= {:code 1000 :reason ""} (:value x)))))))))
 
 (deftest send-and-receive
   (testing "text message (string) can be sent and received"
@@ -168,16 +148,16 @@
                           ["message/text"]
                           ["error"]] listener)
           (ws/connect! bus @ws-url)
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/connect" (:path v))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/connect" (:path x))))
           (dotimes [n 10]
-            (is (= :ok (emit!! emitter (ev/event "/send/text" (str "hello" n))))))
+            (is (f/succ? (xa/>!! emitter (ev/event "/send/text" (str "hello" n)) timeout 1000))))
           (dotimes [n 10]
-            (let [[r v] (recv!! listener)]
-              (is (= :ok r))
-              (is (= "/message/text" (:path v)))
-              (is (= (str "hello" n) (:value v)))))))))
+            (let [x (xa/<!! listener :timeout 1000)]
+              (is (f/succ? x))
+              (is (= "/message/text" (:path x)))
+              (is (= (str "hello" n) (:value x)))))))))
   (testing "binary message can be sent and received"
     (with-echo-server op
       (d/do*
@@ -192,16 +172,16 @@
                           ["message/binary"]
                           ["error"]] listener)
           (ws/connect! bus @ws-url)
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/connect" (:path v))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/connect" (:path x))))
           (dotimes [n 10]
-            (emit!! emitter (ev/event "/send/binary" (.getBytes (str "hello" n )))))
+            (xa/>!! emitter (ev/event "/send/binary" (.getBytes (str "hello" n )))))
           (dotimes [n 10]
-            (let [[r v] (recv!! listener)]
-              (is (= :ok r))
-              (is (= "/message/binary" (:path v)))
-              (is (= (str "hello" n) (String. (:value v))))))))))
+            (let [x (xa/<!! listener :timeout 1000)]
+              (is (f/succ? x))
+              (is (= "/message/binary" (:path x)))
+              (is (= (str "hello" n) (String. (:value x))))))))))
 
   (testing "ping message can be sent and pong received"
     (with-echo-server op
@@ -217,14 +197,14 @@
                           ["message/pong"]
                           ["error"]] listener)
           (ws/connect! bus @ws-url)
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/connect" (:path v))))
-          (emit!! emitter (ev/event "/send/ping" (.getBytes "test")))
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/message/pong" (:path v)))
-            (is (= "test" (String. (:value v)))))))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/connect" (:path x))))
+          (xa/>!! emitter (ev/event "/send/ping" (.getBytes "test")))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/message/pong" (:path x)))
+            (is (= "test" (String. (:value x)))))))))
 
   (testing "ping message without application data can be sent and pong received"
     (with-echo-server op
@@ -240,14 +220,14 @@
                           ["message/pong"]
                           ["error"]] listener)
           (ws/connect! bus @ws-url)
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/connect" (:path v))))
-          (emit!! emitter (ev/event "/send/ping"))
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/message/pong" (:path v)))
-            (is (= "" (String. (:value v)))))))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/connect" (:path x))))
+          (xa/>!! emitter (ev/event "/send/ping"))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/message/pong" (:path x)))
+            (is (= "" (String. (:value x)))))))))
   (testing "Error event must occurs if a message is sent when websocket is closed"
     (d/do*
       (let [bus (ws/client)
@@ -257,7 +237,7 @@
             _ (d/defer (ca/close! listener))]
         (ev/emitize bus emitter)
         (ev/listen bus ["/error"] listener)
-        (emit!! emitter (ev/event "/send/ping"))
+        (xa/>!! emitter (ev/event "/send/ping"))
         (let [{:keys [path value] :as x} (xa/<!! listener :timeout 1000)]
           (is (f/succ? x))
           (is (= "/error" path))
