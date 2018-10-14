@@ -5,7 +5,7 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                 [javax.websocket/javax.websocket-client-api  "1.0"]
                 [org.eclipse.jetty.websocket/javax-websocket-client-impl "9.4.11.v20180605"]
-                [jp.nijohando/failable "0.3.2"]
+                [jp.nijohando/failable "0.4.0"]
                 [jp.nijohando/deferable "0.2.1"]
                 [jp.nijohando/event "0.1.3"]]
   :source-paths ["src/clj"]
