@@ -79,9 +79,9 @@
               _ (d/defer (ws/disconnect! bus))]
           (ev/listen bus "/*" listener)
           (ws/connect! bus "ws://nil.nijohando.jp") ;; nonexistent host for connection failed
-          (let [[r v] (recv!! listener (ca/timeout 3000))]
-            (is (= :ok r))
-            (is (= "/error" (:path v))))))))
+          (let [x (xa/<!! listener :timeout 3000)]
+            (is (f/succ? x))
+            (is (= "/error" (:path x))))))))
   (testing "Just one 'connect' event must be emitted even if connecting multiple times"
     (with-echo-server op
       (d/do*
@@ -93,11 +93,12 @@
           (ev/listen bus "/*" listener)
           (dotimes [n 5]
             (ws/connect! bus @ws-url))
-          (let [[r v] (recv!! listener)]
-            (is (= :ok r))
-            (is (= "/connect" (:path v))))
-          (let [[r v] (recv!! listener)]
-            (is (= :timeout r)))))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/succ? x))
+            (is (= "/connect" (:path x))))
+          (let [x (xa/<!! listener :timeout 1000)]
+            (is (f/fail? x))
+            (is (= ::xa/timeout @x)))))))
   (testing "'disconnect' event must be emitted when disconnected from myself"
     (with-echo-server op
       (d/do*
