@@ -10,18 +10,6 @@
 
 (def ^:private ws-url (atom nil))
 
-(defn- emit!!
-  ([emitter-ch event]
-   (emit!! emitter-ch event nil))
-  ([emitter-ch event timeout-ch]
-   (let [timeout-ch (or timeout-ch (ca/timeout 1000))
-         [v ch] (ca/alts!! [[emitter-ch event] timeout-ch])]
-     (cond
-       (= ch emitter-ch) (if (true? v)
-                           :ok
-                           :close)
-       (= ch timeout-ch) :timeout))))
-
 (defmacro with-echo-server
   [op-sym & body]
   `(d/do*
@@ -164,7 +152,7 @@
             (is (f/succ? x))
             (is (= "/connect" (:path x))))
           (dotimes [n 10]
-            (is (= :ok (emit!! emitter (ev/event "/send/text" (str "hello" n))))))
+            (is (f/succ? (xa/>!! emitter (ev/event "/send/text" (str "hello" n)) timeout 1000))))
           (dotimes [n 10]
             (let [x (xa/<!! listener :timeout 1000)]
               (is (f/succ? x))
@@ -188,7 +176,7 @@
             (is (f/succ? x))
             (is (= "/connect" (:path x))))
           (dotimes [n 10]
-            (emit!! emitter (ev/event "/send/binary" (.getBytes (str "hello" n )))))
+            (xa/>!! emitter (ev/event "/send/binary" (.getBytes (str "hello" n )))))
           (dotimes [n 10]
             (let [x (xa/<!! listener :timeout 1000)]
               (is (f/succ? x))
@@ -212,7 +200,7 @@
           (let [x (xa/<!! listener :timeout 1000)]
             (is (f/succ? x))
             (is (= "/connect" (:path x))))
-          (emit!! emitter (ev/event "/send/ping" (.getBytes "test")))
+          (xa/>!! emitter (ev/event "/send/ping" (.getBytes "test")))
           (let [x (xa/<!! listener :timeout 1000)]
             (is (f/succ? x))
             (is (= "/message/pong" (:path x)))
@@ -235,7 +223,7 @@
           (let [x (xa/<!! listener :timeout 1000)]
             (is (f/succ? x))
             (is (= "/connect" (:path x))))
-          (emit!! emitter (ev/event "/send/ping"))
+          (xa/>!! emitter (ev/event "/send/ping"))
           (let [x (xa/<!! listener :timeout 1000)]
             (is (f/succ? x))
             (is (= "/message/pong" (:path x)))
@@ -249,7 +237,7 @@
             _ (d/defer (ca/close! listener))]
         (ev/emitize bus emitter)
         (ev/listen bus ["/error"] listener)
-        (emit!! emitter (ev/event "/send/ping"))
+        (xa/>!! emitter (ev/event "/send/ping"))
         (let [{:keys [path value] :as x} (xa/<!! listener :timeout 1000)]
           (is (f/succ? x))
           (is (= "/error" path))
