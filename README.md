@@ -16,7 +16,7 @@ Experimental websocket client integrated with [nijohando/event](https://github.c
 #### Clojure CLI / deps.edn
 
 ```clojure
-jp.nijohando/event {:mvn/version "0.1.0-SNAPSHOT"}
+jp.nijohando/event.websocket {:mvn/version "0.1.0-SNAPSHOT"}
 ```
 
 ## Usage
