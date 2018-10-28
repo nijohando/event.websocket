@@ -10,13 +10,13 @@ Experimental websocket client integrated with [nijohando/event](https://github.c
 #### Ligningen / Boot
 
 ```clojure
-[jp.nijohando/event.websocket "0.1.0-SNAPSHOT"]
+[jp.nijohando/event.websocket "0.1.0"]
 ```
 
 #### Clojure CLI / deps.edn
 
 ```clojure
-jp.nijohando/event.websocket {:mvn/version "0.1.0-SNAPSHOT"}
+jp.nijohando/event.websocket {:mvn/version "0.1.0"}
 ```
 
 ## Usage
@@ -29,7 +29,7 @@ jp.nijohando/event.websocket {:mvn/version "0.1.0-SNAPSHOT"}
 
 #### Bus integration
 
-This library provides only 3 functions that are `client`, `connect!` and `disconnect!`.  
+This library provides only 3 functions that are `client`, `connect!` and `disconnect!`.
 
 
 Function `client` creates an event bus that acts as a websocket client.
@@ -88,8 +88,8 @@ Messages can be sent via the emitter channel.
 (def emitter (ca/chan))
 (def listener (ca/chan))
 (ev/emitize bus emitter)
-(ev/listen bus ["/" ["connect"] 
-                    ["message/text"] 
+(ev/listen bus ["/" ["connect"]
+                    ["message/text"]
                     ["error"]] listener)
 (ca/go-loop []
   (when-some [{:keys [path value] :as event} (ca/<! listener)]
