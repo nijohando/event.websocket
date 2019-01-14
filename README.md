@@ -10,13 +10,13 @@ Experimental websocket client integrated with [nijohando/event](https://github.c
 #### Ligningen / Boot
 
 ```clojure
-[jp.nijohando/event.websocket "0.1.1"]
+[jp.nijohando/event.websocket "0.1.2"]
 ```
 
 #### Clojure CLI / deps.edn
 
 ```clojure
-jp.nijohando/event.websocket {:mvn/version "0.1.1"}
+jp.nijohando/event.websocket {:mvn/version "0.1.2"}
 ```
 
 ## Usage
