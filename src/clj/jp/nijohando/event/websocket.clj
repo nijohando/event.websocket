@@ -96,24 +96,24 @@
      (reify
        Client
        (-connect! [this url]
-         (dosync
-           (when (= :disconnected @state)
-             (let [endpoint (new-endpoint this)
-                   uri (URI/create url)]
-               (ref-set state :connecting)
-               (send-off current-session
-                         (fn [_]
-                           (f/if-succ* [x (.connectToServer @websocket-container endpoint config uri)]
-                             (do
-                               (dosync (ref-set state :connected))
-                               x)
-                             (do
-                               (dosync (ref-set state :disconnected))
-                               (ca/go
-                                 (->> (ev/event "/connect-failed" x)
-                                      (ca/>! emitter)))
-                               nil))))
-               true))))
+         (let [endpoint (new-endpoint this)
+               uri (URI/create url)]
+          (dosync
+            (when (= :disconnected @state)
+              (ref-set state :connecting)
+              (send-off current-session
+                        (fn [_]
+                          (f/if-succ* [x (.connectToServer @websocket-container endpoint config uri)]
+                            (do
+                              (dosync (ref-set state :connected))
+                              x)
+                            (do
+                              (dosync (ref-set state :disconnected))
+                              (ca/go
+                                (->> (ev/event "/connect-failed" x)
+                                     (ca/>! emitter)))
+                              nil))))
+              true))))
        (-disconnect! [this]
          (dosync
            (when (= :connected @state)
